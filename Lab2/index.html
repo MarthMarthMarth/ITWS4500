@@ -1,0 +1,383 @@
+<!--api.openweathermap.org/data/2.5/weather?q=city-->
+
+<!DOCTYPE html>
+  <head>
+    <title>Forecast App</title>
+
+    <!-- Include JQuery and Bootstrap -->
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+
+
+    <!-- Style -->
+    <style>
+      .minimized_display {
+        width: 115px;
+        height: 150px;
+        display: inline-block;
+        opacity: 1;
+        overflow: visible !important;
+        float: left;
+        margin: auto;
+        margin-top: 50px;
+      }
+      .maximized_display {
+        width: 300px;
+        height: 250px;
+        display: inline-block;
+        opacity: 1;
+        overflow: visible !important;
+        float: left;
+        margin: auto;
+      }
+      .full-icon {
+         max-width: 115px;
+         height: 100px;
+         margin-bottom: 10px;
+      }
+      .small-wrapper {
+        padding-left: 10px;
+        padding-right: 10px;
+        display: inline-block;
+      }
+      .small-icon {
+         max-width: 30px;
+         height: 30px;
+         margin-bottom: 2.5px;
+      }
+      #forecast_frame {
+        height: 250px;
+        vertical-align: middle;
+        margin: auto;
+        display: inline-block; 
+      }
+      .details {
+        height: 100px;
+        width: 60%;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        margin-bottom: 5px;
+        text-align: left;
+        border: 1px solid black;
+        padding: 10px;
+
+      }
+      h6 {
+        margin-top: 2px;
+        margin-bottom: 2px;
+      }
+      body {
+        margin-top: 200px;
+        text-align: center;
+      }
+      em {
+        display: inline-block;
+      }
+      p {
+        display: inline-block;
+        margin-bottom: 0px;
+      }
+    </style>
+
+    <script>
+
+      // Setup Months
+      var months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+      // Implement C Style Strings
+      if (!String.prototype.format) {
+        String.prototype.format = function() {
+          var args = arguments;
+          return this.replace(/{(\d+)}/g, function(match, number) { 
+            return typeof args[number] != 'undefined'
+              ? args[number]
+              : match
+            ;
+          });
+        };
+      }
+
+      // Global Variables
+      var forecast;
+      var maximized = 0;
+
+      // On Document Ready...
+      $( document ).ready(
+        function () {
+          GetForecastFromGeolocation(
+            function(raw_forecast) {
+
+              // Initial Setup
+              forecast = ProcessForecast(raw_forecast);
+              $("#forecast_frame").html(MaximizedDisplay(forecast.days[0], 0)); 
+              for (var i = 1; i < forecast.days.length; i++) {
+                display = MinimizedDisplay(forecast.days[i], i);
+                $("#forecast_frame").append(display); 
+              }
+
+              // Setup click navigation
+              $("button").on("click", function() {
+                  id = (this).id;
+                  Minimize(maximized, function() {
+                        maximized=id;
+                        Maximize(maximized);
+                  })
+              });
+
+            }
+          );
+
+          // Setup keypress navigation
+          $(document).keydown(function(e) {
+            switch(e.which) {
+              // Left ARrow
+              case 37:
+                if (maximized != 0) {
+                  Minimize(maximized, function() {
+                    maximized--;
+                    Maximize(maximized);
+                  });
+                }
+                break;
+              // Right Arrow
+              case 39:
+                if (maximized != forecast.length - 1) {
+                    Minimize(maximized, function() {
+                    maximized++;
+                    Maximize(maximized);
+                  });
+                }
+                break;
+            }
+          });
+        }
+      )
+      
+
+      // Maximize a panel to show more information
+      function Maximize(pos, callback) {
+        maximized = pos;
+        element = $($("#forecast_frame").children()[pos]);
+
+        // Sequence animations to create visual effect
+        element.animate(
+          {opacity: 0},
+          450, 
+          function () {
+            element.animate(
+            {width: 300, height: 250},
+            450, function() {
+              element.replaceWith(MaximizedDisplay(forecast.days[pos]));
+              if (callback)
+                callback();
+            });
+          }
+        );
+      }
+
+      // Minimize a panel to show just the image
+      function Minimize(pos, callback) {
+
+        element = $($("#forecast_frame").children()[pos]);
+
+        // Sequence animations to create visual effect
+        element.animate(
+          {opacity: 0},
+          450, 
+          function () {
+            element.animate(
+            {width: 115, height: 150},
+            450, function() {
+              element.replaceWith(MinimizedDisplay(forecast.days[pos], pos));
+              
+              // Bind click listener to newly created button
+              $("#" + pos).on("click", function() {
+                  console.log("click");
+                  id = (this).id;
+                  Minimize(maximized, function() {
+                        maximized=id;
+                        Maximize(maximized);
+                  })
+              });
+
+              if (callback)
+                callback();
+            });
+          }
+        );
+      }
+     
+     // Get a forecast by first generating a long/lat, then checking that through the google maps API to get a zip, 
+     // then running that through the openweathermap API to get the forecast
+      function GetForecastFromGeolocation(callback) {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition( 
+            function(position) { 
+              $.get('http://maps.googleapis.com/maps/api/geocode/json?latlng='+position.coords.latitude+','+position.coords.longitude+'&sensor=true').then(
+                function(results) {
+                  var location = results.results[0];           
+                  for (var i = 0; i < location.address_components.length; i++) {
+                    if (location.address_components[i].types[0] == "postal_code") {
+                      zip = location.address_components[i].short_name;
+                      
+                      if (!zip) {
+                        $("#forecast_body").html("<p class='error'>HTML5 Geolocation services could not locate your position.</p>");
+                      }
+                      else {
+                        // Once the zip is found, get the forecast
+                        GetForecastFromZIP(zip, callback);
+                      }
+                    }
+                  }    
+                }
+              );
+            } 
+          );
+        }
+      }
+
+      // Once a zip has been found, get the forecast from that zip
+      function GetForecastFromZIP(zip, callback) {
+        $("h1").html("Weather for " + zip);
+        var query = "http://api.openweathermap.org/data/2.5/forecast?zip=/*CODE HERE*/,us&APPID=2154aa599f56b65507dc2f86c7e204f7";
+        query = query.replace("/*CODE HERE*/", zip);
+
+        $.getJSON(query, 
+          function(raw_forecast) {
+            console.log(raw_forecast);
+            callback(raw_forecast); 
+          }
+        );
+      }
+
+      // Process the forecast into a dataobject suitable for working with
+      function ProcessForecast(raw_forecast) {
+
+        forecast = {};
+        forecast["days"] = [];
+        current_day = raw_forecast.list[0].dt_txt.substring(0,10);
+
+        var i = 0;
+
+        // For each 3 hour segment
+        while (i < raw_forecast.list.length) {
+
+          // Calculate useful values and the data in an accessible way
+          day = {};
+          day["date"] = raw_forecast.list[i].dt_txt.split(" ")[0];
+          day["sections"] = []
+          temps = [];
+
+          while(i < raw_forecast.list.length && raw_forecast.list[i].dt_txt.substring(0,10) == current_day) {
+            day["sections"].push(raw_forecast.list[i]);
+            temps.push(raw_forecast.list[i].main.temp);
+            i++;
+          }   
+
+          day["high"] = KtoF(Math.max(...temps));
+          day["low"] = KtoF(Math.min(...temps));
+          forecast["days"].push(day);
+
+          if (i < raw_forecast.list.length)
+            current_day = raw_forecast.list[i].dt_txt.substring(0,10);   
+        }
+
+        forecast["now"] = forecast["days"][0]["sections"][0];
+        return forecast;
+      }
+
+      // Get the appropriate weather icon for the weather condition
+      function GetIcon(code) {
+        icon = "";
+        if (code >= 200 && code < 300) {
+          icon = "Thunderstorm";
+        }
+        else if (code >= 300 && code < 400) {
+          icon = "Drizzle";
+        }
+        else if (code >= 500 && code < 600) {
+          icon = "Rain";
+        }
+        else if (code >= 600 && code < 700) {
+          icon = "Snow";
+        }
+        else if (code >= 700 && code < 800) {
+          icon = "Atmosphere";
+        }
+        else if (code == 800) {
+          icon = "Clear";
+        }
+        else if (code >= 801 && code < 810) {
+          icon = "Cloudy";
+        }
+        else if (code >= 900 && code < 910) {
+          icon = "Extreme";
+        }
+
+        return "icons/{0}.png".format(icon);
+      }      
+
+      // Create the HTML for a minimized panel
+      function MinimizedDisplay(date_info, pos) {
+
+        icon = GetIcon(date_info.sections[Math.min(3, date_info.sections.length - 1)].weather[0].id);
+      
+        day = date_info.date.substring(8,10);
+        month = months[parseInt(date_info.date.substring(5,7))];
+        year = date_info.date.substring(0,4);
+        date = "{0} {1}".format(month, day);
+
+        display = "<span class='minimized_display'><img class='full-icon' src='{0}'></img><button id={1} class='btn btn-primary btn-xs center-block'>{2}</button></span>".format(icon, pos, date);
+
+        return display;
+      }
+
+      // Create the HTML for a detailed panel
+      function MaximizedDisplay(date_info) {
+        
+        day = date_info.date.substring(8,10);
+        month = months[parseInt(date_info.date.substring(5,7))];
+        year = date_info.date.substring(0,4);
+        
+        header = "<article class='maximized_display'><h3>{0} {1}, {2}</h3>".format(month, day, year);
+        
+        sample = date_info.sections[Math.min(3, date_info.sections.length - 1)];
+
+        body = ("<section class='details'>" +
+               "<strong>High:  </strong><p>{0}F</p></br>" +
+               "<strong>Low:  </strong><p>{1}F</p></br>" +
+               "<strong>Wind:  </strong><p>{2}m/s</p></br>" +
+               "<strong>Humidity:  </strong><p>{3}%</p></br>" +
+               "</section>").format(date_info['high'], date_info['low'], sample.wind['speed'], sample.main['humidity']);
+
+        footer = "<footer>";
+
+        // Add an icon for each 6 hour segment
+        for (var i = 0; i < date_info.sections.length; i+=2) {
+          icon = GetIcon(date_info.sections[i].weather[0].id);
+          temp = KtoF(date_info.sections[i].main.temp);
+          footer += ("<section class='small-wrapper'><h6>{0}</h6><img class='small-icon' src='{1}'></img><h6 class='temp'>{2}F</h6></section>".format(date_info.sections[i].dt_txt.substring(11,16), icon, temp));
+        }
+        footer += "</footer></article>";
+
+        return header + body + footer;
+      }
+      
+      // Convert for Kelvin to Farenheit
+      function KtoF(K) {
+        return Math.round( (K * 9 / 5 - 459.67) * 10) / 10;
+      }
+
+
+    </script>
+
+  </head>
+  <body>
+      <div id="forecast_frame" class="center-block" >
+        <h1>Loading...</h1>
+      </div>
+      <h1></h1>
+  </body>
+</html>

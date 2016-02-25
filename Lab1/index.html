@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+	<head>
+
+		<!-- Stylesheet -->
+		<style>
+			body {
+				background-color: #F0F0F0 !important;
+				overflow: visible;
+				text-align: center;
+				padding-top: 30px;
+			}
+			.tweet-body {
+				display: inline-block;
+				vertical-align: top;
+				width: 450px;
+				height: 120px;
+				margin-left: 10px;
+				margin-top: 5px;
+				font-size: 14px;
+			}
+			.prof-pic-container {
+				display: inline-block;
+				width: 110px;
+				height: 110px;
+				border-radius: 50%;
+				border: 3.5px solid #ADD8E6;
+				position: relative;
+				overflow: hidden;
+			}
+			.prof-pic {
+				display: inline-block;
+				position: absolute;
+				top: -9999px;
+				bottom: -9999px;
+				left: -9999px;
+				right: -9999px;
+				width: auto;
+				height: 100%;
+				margin: auto;
+			}
+			.tweet-container {
+				position: relative;
+				display: block;
+				height: 115px;
+			}
+			.tweet-container header {
+				border-top-left-radius: 10px;
+				border-top-right-radius: 10px;
+				background-color: #FFFFFF;
+				display: block;
+				font-size: 15px;
+				font-weight: bold;
+				color: #79BAEC;
+				height: 20px;
+				padding-top: 5px;
+				padding-left: 10px;
+				padding-bottom: 20px;
+				text-align: left;
+			}
+			.tweet-container .text {
+				background-color: #FFFFFF;	
+				height: 65px;
+				overflow: hidden;
+				padding-left: 10px;
+				text-align: left;
+			}
+			.tweet-container footer {
+				text-align: left;
+				display: block;
+				font-size: 15px;
+				height: 15px;
+				background-color: #79BAEC;
+				border-bottom-left-radius: 10px;
+				border-bottom-right-radius: 10px;
+				font-size: 12px;
+				padding-left: 0px;
+				overflow: hidden;
+			}
+			.tweet-container footer .hashtag-button {
+				background-color: #79BAEC;
+				color: #FFFFFF;
+				height: 100%;
+				text-align: center;
+				float: left;
+				padding-left: 15px;
+				padding-right: 15px;
+				border-right: 1px solid #FFFFFF;
+				text-decoration: none;
+			}
+			.tweet-container footer .hashtag-button:hover {
+				background-color: #FFFFFF;
+				color: #79BAEC;
+			}
+			.tweet-container footer .like-counter {
+				color: #FFFFFF;
+				float: right;
+				height: 15px;
+				line-height: 15px;
+				padding-right: 10px;
+			}
+			.icon {
+				width: 14px;
+				height: 10px;
+				padding-left: 5px;
+				padding-bottom: 1px;
+
+			}
+			.like-counter {
+				text-align: bottom;
+			}
+			.ticker-prompt {
+				display: inline-block;
+				font-size: 20px;
+			}
+			#tweet-stream {
+				height: 575px;
+			}
+
+		</style>
+
+		<!-- JQuery and Bootstrap -->
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+		<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+		<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+		<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+	 
+	  <script>
+	  	// Next tweet in the feed
+	    var tweet_count = 0;
+
+	    // All tweets in the dataset
+	    var tweets = [];
+
+	    // Current tweets in the feed
+	    var current_set = [];
+
+	    // Current speed
+	    var interval;
+
+	    // Add a tweet to the feed.
+    	function AddFeed() {
+    		// Get the next tweet
+  			var tweet = tweets[tweet_count];
+
+  			// Create the element to frame the tweet
+    		var formatted_tweet = "" +
+    			"<span class='tweet-container' style='opacity: 0; overflow: visible'><figure class='prof-pic-container'>" +
+    			"<img class='prof-pic' src='" + tweet.user.profile_background_image_url + "'>" +
+    			"</figure><section class='tweet-body'><header>" +
+    			 tweet.user.screen_name + "</header>" +
+ 				"<article class='text'>" + 
+    			 tweet.text + 
+    		"</article><footer>";
+
+    		for (var i = 0; i < tweet.entities.hashtags.length && i < 3; i++) {
+    			formatted_tweet += "" +
+    				"<a href='https://twitter.com/hashtag/" +
+    				tweet.entities.hashtags[i].text +
+    			 	"?src=tren' class='hashtag-button'>#" +
+    				tweet.entities.hashtags[i].text + "</a>";
+    		}
+
+    		formatted_tweet += "" +
+    			"<span class='like-counter'>" +
+    			tweet.favorite_count + "<img class='icon' src='thumbs-up.png'>" +
+    			"</span>" +
+    			"</footer></span>";
+
+    		// Add the element
+    		var element = $(formatted_tweet);
+    		current_set.push(element);
+    		$('#tweet-stream').append(element);
+
+    		// Set a fade in
+    		setTimeout ( function() {
+	      		element.animate(
+	      			{opacity: 1},
+	      			{queue: false,
+	      			duration: 1000})
+	      	}, 400);
+
+      	// Increment the tweet counter
+      	tweet_count += 1;
+
+      	// Set the z-index
+    		for (var i = 0; i < current_set.length; i++)
+    			current_set[i].css('position:', 'relative').css('z-index', i);
+  		}
+
+			// Start the feed with a given speed
+    	function feed(speed) {
+  				window.clearInterval(interval);
+
+  				// Happen every 'speed' seconds
+  				// Animate out a tweet
+  				interval = setInterval(function() {
+		    	$(".tweet-container:first").animate(
+			    		{opacity: 0},
+			    		{queue: false,
+			    		duration: 500}
+		    		).animate(
+			    		{height: 0}, 
+			    		{queue: false,
+			    		duration: 1000,
+			    		complete: function() { 
+			    				current_set[0].remove();
+			    				current_set.shift();
+			    			}
+			    		}
+			    	).css('overflow', 'visible');
+		    	
+		    	AddFeed();
+		    	$(".tweet-container:last").css('top', '-105px');
+		    	$(".tweet-container:last").animate({top: 0}, 1000);
+		    	}, speed);
+			};
+
+    	$(document).ready(function() {
+    		
+    		// Add the starting tweets
+		    $.getJSON ("tweetsFromTwitter.json", function(data) {
+		    	tweets = data;
+		    	for (var i = 0; i < 5; i++)
+		    		AddFeed();
+				});
+
+		    // Button event handlers
+		    $('#slow-button').click(function(e) {
+		    	feed(5000);
+		    	e.preventDefault();
+		    	$(this).addClass('active');
+		    	$('#fast-button').removeClass('active');
+		    	$('#medium-button').removeClass('active');
+		    });
+		    $('#medium-button').click(function(e) {
+		    	feed(3000);
+		    	e.preventDefault();
+		    	$(this).addClass('active');
+		    	$('#slow-button').removeClass('active');
+		    	$('#fast-button').removeClass('active');
+		    });
+		    $('#fast-button').click(function(e) {
+		    	feed(1200);
+		    	e.preventDefault();
+		    	$(this).addClass('active');
+		    	$('#slow-button').removeClass('active');
+		    	$('#medium-button').removeClass('active');
+
+		    });
+
+		    $('#medium-button').trigger("click");
+
+			});
+
+
+	    </script>
+
+	</head>
+	<body>
+		<main id='tweet-stream'></main>
+		<h3><span class='label label-default'>Ticker Speed:</span></h3>
+		<span class="btn-toolbar" role="group" aria-label="..." style='display: inline-block'>
+			<button type="button" id='fast-button' class="btn btn-default">Fast (1.2s)</button>
+  		<button type="button" id='medium-button' class="btn btn-default">Medium (3s)</button>
+  		<button type="button" id='slow-button' class="btn btn-default">Slow (5s)</button>
+		</span>
+	</body>
+</html>
